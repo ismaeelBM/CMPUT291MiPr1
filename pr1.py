@@ -92,7 +92,7 @@ def getUserDetails(status):
         print("type 'return' to return to the login options")
         email = input("Enter your email address: ")
         
-        if email != "return":
+        if email == "return":
             return False
     
         if EmailNotValid(email):
