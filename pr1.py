@@ -82,7 +82,7 @@ def LoginWindow():
             else:
                 print("Please enter a valid option!")
                 num = False
- 
+
 
 
 def getUserDetails(status):
@@ -91,26 +91,28 @@ def getUserDetails(status):
     while True:
         print("type 'return' to return to the login options")
         email = input("Enter your email address: ")
-        
+
         if email == "return":
             return False
-    
+
         if EmailNotValid(email):
             print("\nInvalid email Address. Please try again.")
             continue
-            
+
         password = getpass("Password: ")       
-    
+
         if status == "New":
             # Add New Use
-            return (email, password)
+            name = input("name: ")
+            phone = input("phone: ")
+            return (email, password, name, phone)
         else:
             userExists = True
             # Check if user exists in database
             if (userExists):
                 return (email, password)
             print("Wrong email and password combination. Please try again.")
-    
+
 
 
 def EmailNotValid(email):
