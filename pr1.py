@@ -87,12 +87,12 @@ def LoginWindow():
         while(num):   
             if UserChoice == "1":
                 value = getUserDetails("Returning")
-                if (value != "False"): 
+                if (value != False): 
                     return value
 
             if UserChoice == "2":
                 value = getUserDetails("New")
-                if (value != "False"):
+                if (value != False):
                     return value      
 
             if UserChoice == "3":
@@ -113,7 +113,7 @@ def getUserDetails(status):
         email = input("Enter your email address: ")
 
         if email == "return":
-            return LoginWindow()
+            return False
 
         if EmailNotValid(email):
             print("\nInvalid email Address. Please try again.")
