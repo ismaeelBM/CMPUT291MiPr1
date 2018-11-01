@@ -54,7 +54,7 @@ def MainMenu(user):
         elif userInput == "5":
             SearchDeleteRequest(user)
         elif userInput == "6":
-            print("Logged our from account: " + user[0])
+            print("Logged out from account: " + user)
             return True
         elif userInput == "7":
             ExitProgram()
@@ -113,7 +113,7 @@ def getUserDetails(status):
         email = input("Enter your email address: ")
 
         if email == "return":
-            return False
+            return LoginWindow()
 
         if EmailNotValid(email):
             print("\nInvalid email Address. Please try again.")
@@ -122,7 +122,7 @@ def getUserDetails(status):
         password = getpass("Password: ")       
 
         if status == "New":
-            # Add New Use
+            # Add New User
             name = input("name: ")
             phone = input("phone: ")
             AddMember((email, name, phone, password))
