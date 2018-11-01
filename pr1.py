@@ -1,10 +1,20 @@
 from sys import exit
 from getpass import getpass
 import re
+import sqlite3
 
-def main():
+connection = None
+cursor = None
 
+def main():  
     Login = True
+    
+    path= "./pr1.db"
+    connect(path)
+    
+    
+    connection.commit()
+    connection.close()
 
     while(Login):
         Login = False
@@ -12,6 +22,14 @@ def main():
         if userDetails != False:
             Login = MainMenu(userDetails)
 
+def connect(path):
+    global connection, cursor
+
+    connection = sqlite3.connect(path)
+    cursor = connection.cursor()
+    cursor.execute(' PRAGMA foreign_keys=ON; ')
+    connection.commit()
+    return
 
 def MainMenu(user):
 
