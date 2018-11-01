@@ -3,7 +3,7 @@ from getpass import getpass
 import re
 import sqlite3
 
-connection = None
+conn = None
 cursor = None
 
 def main():  
@@ -12,9 +12,6 @@ def main():
     path= "./pr1.db"
     connect(path)
     
-    
-    connection.commit()
-    connection.close()
 
     while(Login):
         Login = False
@@ -23,18 +20,19 @@ def main():
             Login = MainMenu(userDetails)
 
 def connect(path):
-    global connection, cursor
+    global conn, cursor
 
-    connection = sqlite3.connect(path)
-    cursor = connection.cursor()
+    conn = sqlite3.connect(path)
+    cursor = conn.cursor()
     cursor.execute(' PRAGMA foreign_keys=ON; ')
-    connection.commit()
+    conn.commit()
     return
 
 def MainMenu(user):
 
     while(True):
-        print("Logged in as: " + user[0])
+        print("\n\n-------------------- Main Menu ----------------------")
+        print("Logged in as: " + user)
         print("1. Offer Ride")
         print("2. Search Rides")
         print("3. Book Members/Cancel Booking")
@@ -66,6 +64,8 @@ def MainMenu(user):
 
 def ExitProgram():
     print("Program Exited")
+    conn.commit()
+    conn.close()    
     exit()      
 
 def LoginWindow():
@@ -76,6 +76,7 @@ def LoginWindow():
     # When value is false, it means user wanted to return to main menu
 
     while(1):
+        print("\n\n-------------------- Login Window ----------------------")
         print(" 1. Login")
         print(" 2. Register")
         print(" 3. Exit")
@@ -107,6 +108,7 @@ def getUserDetails(status):
     # For getting Login details
 #    valid = True
     while True:
+        print("\n\n-------------------- Details Entry ----------------------")
         print("type 'return' to return to the login options")
         email = input("Enter your email address: ")
 
@@ -123,12 +125,13 @@ def getUserDetails(status):
             # Add New Use
             name = input("name: ")
             phone = input("phone: ")
-            return (email, password, name, phone)
+            AddMember((email, name, phone, password))
+            return email
         else:
-            userExists = True
+            userExists = CheckUserExistence((email,password))
             # Check if user exists in database
             if (userExists):
-                return (email, password)
+                return email
             print("Wrong email and password combination. Please try again.")
 
 
@@ -155,5 +158,18 @@ def RideRequest(user):
 def SearchDeleteRequest(user):
     return
 
+def AddMember(memberDetails):
+    
+    cursor.execute("INSERT INTO members VALUES (?,?,?,?);", memberDetails)
+    return
+
+def CheckUserExistence(userDetails):
+    cursor.execute('Select email,pwd From members;')
+    rows = cursor.fetchall()
+    if (userDetails in rows):
+        return True
+    else:
+        return False
+    
 
 main()
