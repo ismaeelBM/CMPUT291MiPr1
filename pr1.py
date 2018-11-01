@@ -2,16 +2,21 @@ from sys import exit
 from getpass import getpass
 import re
 import sqlite3
+import sys
 
 conn = None
 cursor = None
 
 def main():  
     Login = True
+        
+    if len(sys.argv) == 2:
+        path = sys.argv[1]
+        connect(path)
     
-    path= "./pr1.db"
-    connect(path)
-    
+    else:
+        print("Invalid Command Line Argument")       
+        return
 
     while(Login):
         Login = False
