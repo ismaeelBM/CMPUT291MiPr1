@@ -37,6 +37,7 @@ def MainMenu(user):
 
     while(True):
         print("\n\n-------------------- Main Menu ----------------------")
+        printMessages(user)
         print("Logged in as: " + user)
         print("1. Offer Ride")
         print("2. Search Rides")
@@ -139,6 +140,21 @@ def getUserDetails(status):
                 return email
             print("Wrong email and password combination. Please try again.")
 
+def printMessages(user):
+    
+    print(user)
+    cursor.execute("SELECT content FROM inbox WHERE email = ? AND seen = 'n';", (user,) )
+    rows = cursor.fetchall()
+    
+    i = 1
+    print("Unread Messages \n")
+    print(rows)
+    for message in rows:
+        print(str(i) + ') ' + message[0] + '\n')
+        i += 1
+        
+    cursor.execute("UPDATE inbox SET seen = 'y' WHERE email = ?;", (user,))
+    return    
 
 
 def EmailNotValid(email):
