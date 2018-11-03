@@ -3,9 +3,10 @@ from getpass import getpass
 import re
 import sqlite3
 import sys
+import datetime
 
 conn = None
-cursor = None
+cur = None
 
 def main():  
     Login = True
@@ -17,7 +18,8 @@ def main():
     else:
         print("Invalid Command Line Argument")       
         return
-
+    
+    
     while(Login):
         Login = False
         userDetails = LoginWindow()
@@ -25,11 +27,11 @@ def main():
             Login = MainMenu(userDetails)
 
 def connect(path):
-    global conn, cursor
+    global conn, cur
 
     conn = sqlite3.connect(path)
-    cursor = conn.cursor()
-    cursor.execute(' PRAGMA foreign_keys=ON; ')
+    cur = conn.cursor()
+    cur.execute(' PRAGMA foreign_keys=ON; ')
     conn.commit()
     return
 
@@ -143,17 +145,19 @@ def getUserDetails(status):
 def printMessages(user):
     
     print(user)
-    cursor.execute("SELECT content FROM inbox WHERE email = ? AND seen = 'n';", (user,) )
-    rows = cursor.fetchall()
+    cur.execute("SELECT content FROM inbox WHERE email = ? AND seen = 'n';", (user,) )
+    rows = cur.fetchall()
     
     i = 1
-    print("Unread Messages \n")
-    print(rows)
+    if len(rows) == 0:
+        print("No new messages \n")
+    else:
+        print("Unread Messages \n")
     for message in rows:
         print(str(i) + ') ' + message[0] + '\n')
         i += 1
         
-    cursor.execute("UPDATE inbox SET seen = 'y' WHERE email = ?;", (user,))
+    cur.execute("UPDATE inbox SET seen = 'y' WHERE email = ?;", (user,))
     return    
 
 
@@ -164,19 +168,30 @@ def EmailNotValid(email):
     else:
         return False 
 
-def OfferRide(User):
+def OfferRide(email):
+    
+    cur.execute("Select cno From cars WHERE owner = ?;",(email,))
+    carList = cur.fetchall()
+    if len(carList) <= 0:
+        print("Sorry you don't have any cars registered to offer rides")
+        return
+    
+    print(carList[0][0])
+    
     notvalid = True
     while notvalid:
-        date = input("Enter ride date(dd/mm/yy): ")
-        day,month,year = date.split("/")
+        date = input("Enter ride date(yyyy/mm/dd): ")
+        year,month,day = date.split("/")
     
         isValidDate = True  
         try :   
-            datetime.datetime(int(year),int(month),int(day))
+            if datetime.datetime(int(year),int(month),int(day)) < datetime.datetime.today():
+                isValidDate = False
+            
         except ValueError :
             isValidDate = False
-            
-        if(isValidDate) :
+        
+        if (isValidDate):
             notvalid = False
         else :
             print ("Date is Invalid..")    
@@ -202,25 +217,123 @@ def OfferRide(User):
             print("Price per seat is Invalid..") 
             notvalid = True
            
+
         
     luggage = input("Enter luggage description: ")
-    srcLocation = input("Enter source location: ")
-    srcDestination = input("Enter source destiation: ")
-    carNo = input("Enter car number(to skip, leave blank and press enter): ")
     
+    srcLocation = None
+    while srcLocation == None:
+        srcLocation = input("Enter a source location: ")
+        srcLocation = locationFinder(srcLocation)
     
-    enoute = []
+    srcDestination = None
+    while srcDestination == None:
+        srcDestination = input("Enter a destination location: ")
+        srcDestination = locationFinder(srcDestination)
+    
+    enroute = []
+    
     while True:
-        setLocatoion = input("Enter a set of enroute locations:  ")
-        if setLocatoion == '':
-            break
+        setLocation = input("Enter an enroute location (leave blank and press enter to skip): ")
+        if setLocation == '':
+            break     
+        setLocation = locationFinder(setLocation)
+        if setLocation == None:
+            continue
         else:
-            enoute.append(setLocatoion)   
-        
+            enroute.append(setLocation)
+
+    while True:
+        if len(carList) > 1:
+            carNo = input("Enter car number: ")
+            if (carNo,) not in carList:
+                print("The car number does not exist in your existing cars")
+                continue
+        else:
+            carNo = carList[0][0]
+            print("Car number set to " + str(carNo))
+            break
     
-    print("date: " +str(date), "price: $" +str( price), "luggage: "+str(luggage))
+    
+    cur.execute("SELECT rno FROM rides;")
+    rides = cur.fetchall()
+    alist = []
+    for number in rides:
+        alist.append(int(number[0]))
+    
+    rno = max(alist) + 1
+    
+    ridesRecord = (rno, price, date, seats, luggage, srcLocation, srcDestination, email, carNo)
+    cur.execute("INSERT INTO rides VALUES (?,?,?,?,?,?,?,?,?);", ridesRecord)
+    
+    for route in enroute:
+        enrouteRecord = (rno, route)
+        cur.execute("INSERT INTO enroute VALUES (?,?);", enrouteRecord)
+    
+    print("Your ride has been added to the database")
     return
 
+def locationFinder(code):
+    # Returns location for 
+    
+    cur.execute('Select lcode From locations;')
+    rows = cur.fetchall()
+    if ((code,) in rows):
+        return code
+    else:
+        arg = "SELECT * FROM locations WHERE city like '%" + code + "%' OR prov like '%" + code + "%' or address like '%" + code + "%';"
+        cur.execute(arg)
+        rows = cur.fetchall()
+        if len(rows) == 0:
+            print("No similar locations found")
+            return
+        choice = getChoice(rows)
+        return choice
+        
+def getChoice(rows):
+        n = 0
+        j = 0
+        
+        while True:
+            for i in range(n, n + 5):
+                if i >= len(rows):
+                    break
+                print(str(i + 1) + ') ', rows[i])
+        
+            if (n + 5) < len(rows):
+                print("Enter 'M' to show more options")
+            else:
+                print("End of search reached. Enter 'M' to show from beginning")
+            
+            print("Enter 'return' to go back")
+            
+            choice = input("Enter your choice: ")
+            
+            if choice == 'return':
+                return
+            elif choice == 'M':
+                if (n+5) < len(rows):
+                    n = n + 5
+                    continue
+                else:
+                    n = 0
+                    continue
+            else:
+                try:
+                    choice = int(choice)
+                    if choice < len(rows) + 1 and choice >= 1:
+                        print (rows[choice-1])
+                        return (rows[choice-1][0])
+                        
+                    else:
+                        print("Please enter a valid option.")
+                        continue                        
+                        
+                except:
+                    print("Please enter a valid option.")
+                    continue
+    
+    
 def SearchRide(user):
     return 
 
@@ -235,12 +348,12 @@ def SearchDeleteRequest(user):
 
 def AddMember(memberDetails):
     
-    cursor.execute("INSERT INTO members VALUES (?,?,?,?);", memberDetails)
+    cur.execute("INSERT INTO members VALUES (?,?,?,?);", memberDetails)
     return
 
 def CheckUserExistence(userDetails):
-    cursor.execute('Select email,pwd From members;')
-    rows = cursor.fetchall()
+    cur.execute('Select email,pwd From members;')
+    rows = cur.fetchall()
     if (userDetails in rows):
         return True
     else:
