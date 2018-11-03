@@ -18,8 +18,7 @@ def main():
     else:
         print("Invalid Command Line Argument")       
         return
-    
-    
+
     while(Login):
         Login = False
         userDetails = LoginWindow()
@@ -158,7 +157,7 @@ def printMessages(user):
         i += 1
         
     cur.execute("UPDATE inbox SET seen = 'y' WHERE email = ?;", (user,))
-    return    
+    return      
 
 
 def EmailNotValid(email):
@@ -226,11 +225,14 @@ def OfferRide(email):
         srcLocation = input("Enter a source location: ")
         srcLocation = locationFinder(srcLocation)
     
+    srcLocation = srcLocation[0]
+    
     srcDestination = None
     while srcDestination == None:
         srcDestination = input("Enter a destination location: ")
         srcDestination = locationFinder(srcDestination)
     
+    srcDestination = srcDestination[0]
     enroute = []
     
     while True:
@@ -241,7 +243,7 @@ def OfferRide(email):
         if setLocation == None:
             continue
         else:
-            enroute.append(setLocation)
+            enroute.append(setLocation[0])
 
     while True:
         if len(carList) > 1:
@@ -290,20 +292,26 @@ def locationFinder(code):
         choice = getChoice(rows)
         return choice
         
-def getChoice(rows):
+def getChoice(rows, showAll = False):
         n = 0
-        j = 0
+        j = 0   
         
         while True:
-            for i in range(n, n + 5):
-                if i >= len(rows):
-                    break
-                print(str(i + 1) + ') ', rows[i])
-        
-            if (n + 5) < len(rows):
-                print("Enter 'M' to show more options")
+            if showAll:
+                for i in range(0, len(rows)):
+                    if i >= len(rows):
+                        break
+                    print(str(i + 1) + ') ', rows[i])
             else:
-                print("End of search reached. Enter 'M' to show from beginning")
+                for i in range(n, n + 5):
+                    if i >= len(rows):
+                        break
+                    print(str(i + 1) + ') ', rows[i])
+        
+                if (n + 5) < len(rows):
+                    print("Enter 'M' to show more options")
+                else:
+                    print("End of search reached. Enter 'M' to show from beginning")
             
             print("Enter 'return' to go back")
             
@@ -311,7 +319,7 @@ def getChoice(rows):
             
             if choice == 'return':
                 return
-            elif choice == 'M':
+            elif choice == 'M' and showAll == False:
                 if (n+5) < len(rows):
                     n = n + 5
                     continue
@@ -323,7 +331,7 @@ def getChoice(rows):
                     choice = int(choice)
                     if choice < len(rows) + 1 and choice >= 1:
                         print (rows[choice-1])
-                        return (rows[choice-1][0])
+                        return (rows[choice-1])
                         
                     else:
                         print("Please enter a valid option.")
@@ -338,8 +346,194 @@ def SearchRide(user):
     return 
 
 def BookOrCancel(user):
+    notvalid = True
+    while notvalid:
+        print("To book ride, Enter 1")
+        print("To cancel ride, Enter 2")
+        print("To list all bookings, Enter 3")
+        print("To list all rides, Enter 4")
+        print("To exit, enter 5")
+        userInput = input()
+                
+        if userInput == "1":
+            book(user)
+            return False
+
+        elif userInput == "2":
+            cancel(user)
+            return False
+        
+        elif userInput == "3":
+            cur.execute(''' SELECT b.bno, b.email, b.rno, b.cost, b.seats, b.pickup, b.dropoff
+                            FROM bookings b, rides r
+                            where r.rno = b.rno
+                            and driver = ?;''',(user,)) 
+            rows = cur.fetchall()
+            
+            i = 1
+            print("\nBookings \n")
+            for record in rows:
+                print(str(record) + '\n')
+                i += 1    
+            conn.commit()           
+            return False            
+            
+            
+        elif userInput == "4":
+            cur.execute(''' SELECT r.rno, r.seats-ifnull(sum(b.seats),0) 
+                            FROM rides r, bookings b 
+                            WHERE b.rno = r.rno and r.rno in
+                                            (SELECT rno 
+                                             FROM rides 
+                                             WHERE driver = 'don@mayor.yeg')
+                                             GROUP BY r.rno''')
+            rows = cur.fetchall()
+            rideno = getChoice(rows)
+            i = 1
+            print("\nRides and their available seats. \n")
+            for record in rows:
+                print(str(record) + '\n')
+                i += 1    
+                        
+            conn.commit()           
+            
+            return False               
+        
+        
+        elif userInput == "5":
+            return False
+        
+        else:
+            print("Invalid input!")
+            return False
+
+def book(user): 
+    
+    cur.execute(''' SELECT r.rno, r.seats-ifnull(sum(b.seats),0) 
+                            FROM rides r, bookings b 
+                            WHERE b.rno = r.rno and r.rno in
+                                            (SELECT rno 
+                                             FROM rides 
+                                             WHERE driver = 'don@mayor.yeg')
+                                             GROUP BY r.rno''')
+    rows = cur.fetchall()
+    rno = getChoice(rows)    
+    
+    booking = True
+    while booking:
+
+        #cur.execute("SELECT rno FROM rides WHERE driver=?;",(user,))
+        #listRides = cur.fetchall()
+        #print(listRides)
+        #if len(listRides) == 0:
+            #print("There are no rides registered under your account")
+            #return 
+        
+        cur.execute("SELECT bno FROM bookings;")
+        bookings = cur.fetchall()
+        alist = []
+        for number in bookings:
+            alist.append(int(number[0])) 
+        bno = max(alist) + 1  
+        
+        
+        #rno = input("Enter ride number: ")
+        #if (int(rno),) not in listRides:
+            #print("This ride is not registered to your account")
+            #return
+        
+        email = input("Enter member's email: ")
+        cur.execute("SELECT email FROM members;")
+        listemails = cur.fetchall() 
+        while (email,) not in listemails:
+            print("This email is not registered")
+            email = input("Enter member's email: ")
+        
+        cost = input("Enter cost of ride: ")
+        if cost == '':
+            cost = None
+        
+        
+        while True:
+            seats = input("Enter number of seats to book: ")
+            if rno[1] < int(seats):
+                decision = input("The ride is overbooked by " + str(int(seats) - rno[1]) + " seats! Are you sure you want to continue? (y/n)")
+                if decision == 'y':
+                    break
+                elif decision == 'n':
+                    return
+                else:
+                    print("Invalid Input")
+                    continue
+            else:
+                break
+                
+                 
+        pickup = input("Enter pickup location: ")
+        if pickup == '':
+            pickup = None
+        else:
+            pickup = locationFinder(pickup)
+            if pickup != None:
+                pickup = pickup[0]
+        
+        dropoff = input("Enter dropoff location: ")
+        if dropoff == '':
+            dropoff = None
+        else:        
+            dropoff = locationFinder(dropoff)
+            if dropoff != None:
+                dropoff = dropoff[0]
+
+        arg = (bno,email,rno[0],cost,int(seats),pickup,dropoff)
+        cur.execute("insert into bookings values (?,?,?,?,?,?,?);", arg)
+        
+        now = datetime.datetime.now()
+        date = now.strftime("%Y-%m-%d %H:%M")
+        message = ("LOL, your booking has been cancelled!")
+        status = "n"
+        arg = (email,date,user,message,rno[0],status)        
+        
+        conn.commit()
+        return False 
+            
+        
+        
+    
+    return      
+
+def cancel(user):
+    now = datetime.datetime.now()
+    cur.execute(''' SELECT b.bno, email, r.rno
+                    FROM bookings b, rides r
+                    WHERE r.rno = b.rno
+                    and driver = ?''',(user,)) 
+    rows = cur.fetchall()
+    delete = getChoice(rows,True)
+    cur.execute("DELETE FROM bookings WHERE bno = ?;",(delete[0],))
+
+    date = now.strftime("%Y-%m-%d %H:%M")
+    message = ("LOL, your booking has been cancelled!")
+    status = "n"
+    arg = (delete[1],date,user,message,delete,status)
+    cur.execute("insert into inbox values (?, ?, ?, ?, ?,?);", arg)
+    
+    conn.commit()
     return
 
+def checkList(sqlSelect, sqlFrom, sqlWhere = '', item = None):
+    # If item is none, return the query 'Select sqlSelect FROM sqlFrom sqlWhere'
+    # If item is not none, checks whether item exists in the previously mentioned query
+    
+    arg = "Select " + sqlSelect + " FROM " + sqlFrom + sqlWhere + ";"
+    cur.execute(arg)
+    rows = cur.fetchall()
+    if item == None:
+        return rows
+    else:
+        return (item in rows)
+    
+    
 def RideRequest(user):
     return
 
