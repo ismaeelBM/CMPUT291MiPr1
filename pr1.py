@@ -165,7 +165,61 @@ def EmailNotValid(email):
         return False 
 
 def OfferRide(User):
-    return 
+    notvalid = True
+    while notvalid:
+        date = input("Enter ride date(dd/mm/yy): ")
+        day,month,year = date.split("/")
+    
+        isValidDate = True  
+        try :   
+            datetime.datetime(int(year),int(month),int(day))
+        except ValueError :
+            isValidDate = False
+            
+        if(isValidDate) :
+            notvalid = False
+        else :
+            print ("Date is Invalid..")    
+            notvalid = True
+            
+    notvalid = True     
+    while notvalid:
+        seats = input("Enter number of seats offered: ")
+        try:
+            seats = int(seats)
+            notvalid = False
+        except ValueError:
+            print("Number of seats is Invalid..")
+            notvalid = True
+        
+    notvalid = True         
+    while notvalid:
+        price = input("Enter price per seat:$ ") 
+        try:
+            price = int(price)
+            notvalid = False 
+        except ValueError:
+            print("Price per seat is Invalid..") 
+            notvalid = True
+           
+        
+    luggage = input("Enter luggage description: ")
+    srcLocation = input("Enter source location: ")
+    srcDestination = input("Enter source destiation: ")
+    carNo = input("Enter car number(to skip, leave blank and press enter): ")
+    
+    
+    enoute = []
+    while True:
+        setLocatoion = input("Enter a set of enroute locations:  ")
+        if setLocatoion == '':
+            break
+        else:
+            enoute.append(setLocatoion)   
+        
+    
+    print("date: " +str(date), "price: $" +str( price), "luggage: "+str(luggage))
+    return
 
 def SearchRide(user):
     return 
