@@ -46,7 +46,7 @@ def MainMenu(user):
         print("4. Post Ride Request")
         print("5. Search/Delete Ride Requests")
         print("6. Log Out")
-        print("7. Close Program")
+        print("7. Close Program\n")
 
         userInput = input("Enter your Choice: ")
 
@@ -118,18 +118,26 @@ def getUserDetails(status):
         print("\n\n-------------------- Details Entry ----------------------")
         print("type 'return' to return to the login options")
         email = input("Enter your email address: ")
-
+        
+        
         if email == "return":
             return False
+        
 
+        
         if EmailNotValid(email):
             print("\nInvalid email Address. Please try again.")
             continue
 
-        password = getpass("Password: ")       
+        password = getpass("Password: ") 
+        userExists = CheckUserExistence((email,password))
+        if userExists and status == 'New':
+            print('The email is already in use')
+            continue        
 
         if status == "New":
             # Add New User
+            
             name = input("name: ")
             phone = input("phone: ")
             AddMember((email, name, phone, password))
@@ -179,7 +187,9 @@ def OfferRide(email):
     
     notvalid = True
     while notvalid:
+        
         date = input("Enter ride date(yyyy/mm/dd): ")
+        
         year,month,day = date.split("/")
     
         isValidDate = True  
@@ -281,7 +291,7 @@ def locationFinder(code):
     cur.execute('Select lcode From locations;')
     rows = cur.fetchall()
     if ((code,) in rows):
-        return code
+        return (code,)
     else:
         arg = "SELECT * FROM locations WHERE city like '%" + code + "%' OR prov like '%" + code + "%' or address like '%" + code + "%';"
         cur.execute(arg)
@@ -343,7 +353,55 @@ def getChoice(rows, showAll = False):
     
     
 def SearchRide(user):
+    keywords = input("Enter from 1-3 keywords seperated by whitespace: ")
+    keywords.lstrip()
+    keywords.rstrip()
+    keyword = keywords.split(" ")
+    keyword = keyword[:3]
+    
+    arg = []
+    i = 1
+    for key in keyword:
+        value = "select rno from ( " + addArg(key) + ") as key" + str(i)
+        arg.append(value)
+        i += 1
+    
+    arg = " Intersect ".join(arg)
+    
+    arg = "select rno, driver, price, rdate, seats, lugDesc, src, lcode as onroute, dst  from rides natural left outer join enroute where rno in(" + arg
+    arg = arg + ");"
+    
+    cur.execute(arg)
+    rows = cur.fetchall()
+    
+    if len(rows) == 0:
+        print("No matching records found")
+        return
+    choice = getChoice(rows)
+    
+    if choice == None:
+        return
+    else:
+        message = input("Enter your message to the driver: ")
+        cur.execute("SELECT datetime('now','localtime');")
+        date = cur.fetchone()[0]      
+        arg = (choice[1],date,user,message,choice[0],'n')
+        cur.execute("insert into inbox values (?, ?, ?, ?, ?,?);", arg)        
+    
+    
     return 
+
+def addArg(key):
+    
+    commonCheck = "(l.lcode = '" + key + "' or city like '%" + key + "%' or prov like '%" + key + "%'  or address like '%" + key + "%')"
+    
+    check1 = "Select rno from rides, locations l where src = lcode and "
+    check2 = "Union Select rno from rides, locations l where dst = lcode and "
+    check3 = "union Select rno from enroute e, locations l where e.lcode = l.lcode and"
+    
+    arg = check1 + commonCheck + check2 + commonCheck + check3 + commonCheck
+    
+    return arg
 
 def BookOrCancel(user):
     notvalid = True
@@ -391,7 +449,7 @@ def BookOrCancel(user):
             rideno = getChoice(rows)
             i = 1
             print("\nRides and their available seats. \n")
-            for record in rows:
+            for record in rideno:
                 print(str(record) + '\n')
                 i += 1    
                         
@@ -535,13 +593,101 @@ def checkList(sqlSelect, sqlFrom, sqlWhere = '', item = None):
     
     
 def RideRequest(user):
+    notvalid = True
+    while notvalid:
+        date = input("Enter ride date(yyyy/mm/dd): ")
+        year,month,day = date.split("/")
+    
+        isValidDate = True  
+        try :   
+            if datetime.datetime(int(year),int(month),int(day)) < datetime.datetime.today():
+                isValidDate = False
+            
+        except ValueError :
+            isValidDate = False
+        
+        if (isValidDate):
+            notvalid = False
+        else :
+            print ("Date is Invalid..")    
+            notvalid = True
+         
+        cur.execute("SELECT rid FROM requests;")
+        request = cur.fetchall()
+        alist = []
+        for number in request:
+            alist.append(int(number[0])) 
+        rid = max(alist) + 1              
+        
+        pickup = input("Enter pickup location: ")
+        
+        pickup = None
+        while pickup == None:
+            pickup = input("Enter a source location: ")
+            pickup = locationFinder(pickup)
+        
+        pickup = pickup[0]        
+        
+        dropoff = None
+        while dropoff == None:
+            dropoff = input("Enter a source location: ")
+            dropoff = locationFinder(dropoff)
+        
+        dropoff = dropoff[0] 
+
+        amount = input("Enter amount you are willing to pay:$ ")
+        
+        args = (rid,email,rdate,pickup,dropoff,amount)
+        cur.execute("insert into request values (?,?, ?, ?, ?, ? );", arg)
+        conn.commit()        
     return
 
+
 def SearchDeleteRequest(user):
+    
+    valid = True
+    while valid:
+        print("To delete a ride, Enter 1")
+        print("To view requests, Enter 2")
+        print("To exit, enter 3")
+        
+        userInput = input()
+                
+        if userInput == "1":    
+            cur.execute(''' SELECT rid, email, rdate, pickup, dropoff, amount
+                            FROM requests 
+                            WHERE email = ?''',(user,)) 
+            rows = cur.fetchall()
+            if len(rows) <= 0:
+                print("No ride request\n")
+                return False
+            else: 
+                delete = getChoice(rows,True)                      
+                cur.execute("DELETE FROM request WHERE rid = ?;",(delete[0],))    
+                conn.commit()  
+                return False
+                
+        elif userInput == "2":
+            location = input("Enter pickup location(city/lcode): ").upper()
+            cur.execute('Select rid From requests, locations where pickup = lcode and (UPPER(pickup) =? or UPPER(city) = ?);',(location,location))
+            rows = cur.fetchall()
+            if len(rows) <= 0:
+                print("No records found")
+                return
+            else: 
+                request = getChoice(rows,True)
+                return
+            
+        elif userInput == "3":
+            return False
+        
+        else:
+            print("Invalid input!")
+            return False        
+            
     return
 
 def AddMember(memberDetails):
-    
     cur.execute("INSERT INTO members VALUES (?,?,?,?);", memberDetails)
     return
 
@@ -555,3 +701,4 @@ def CheckUserExistence(userDetails):
     
 
 main()
+
